@@ -1,0 +1,225 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-brand-primary: #1A1A1A;
+  --color-brand-secondary: #F97316;
+  --color-brand-accent: #E5E7EB;
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    background-color: #0F172A;
+    color: #F8FAFC;
+  }
+  
+  body {
+    @apply font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight text-white;
+  }
+}
+
+@layer utilities {
+  .clip-diagonal {
+    clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+  }
+
+  .grid-pattern {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #F97316;
+}
+
+/* Print Media Query: Optimized for paper-path output of invoices, contract archives, and construction ledgers */
+@media print {
+  html, body {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Reset outer container alignment and offset spacing */
+  main, .lg\:ml-72 {
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+  }
+
+  .p-6, .p-8, .lg\:p-8 {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Elements to fully hide during print: sidebars, top headers, chatbots, control buttons, dropdown filters, search inputs, delete confirmation modals, maps, or generic action buttons */
+  aside,
+  header,
+  footer,
+  nav,
+  input,
+  select,
+  textarea,
+  button,
+  .no-print,
+  .print-hidden,
+  .chat-widget,
+  [role="dialog"] .absolute.inset-0, /* Modal overlay background */
+  .lg\:hidden,
+  .sticky,
+  th:last-child, /* Action header column inside lists */
+  td:last-child, /* Action button cell inside lists */
+  .flex.items-center.justify-end, /* Quick action buttons wrapper */
+  .relative.max-w-md, /* Search boxes */
+  .flex.items-center.gap-2, /* Status filters / generic controls */
+  .mb-10.px-2,
+  .pt-6.border-t,
+  .border-b.border-gray-800.flex.flex-col, /* Table Search / Filter header container */
+  .flex.flex-col.md\:flex-row.md\:items-center.justify-between > div:last-child /* Top-right control action buttons wrapper */
+  {
+    display: none !important;
+  }
+
+  /* Make sure table rows fill up beautifully */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 20px 0 !important;
+    background: transparent !important;
+    color: #000000 !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+    background-color: #f8fafc !important;
+  }
+
+  th {
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    text-transform: uppercase !important;
+    font-size: 9pt !important;
+    padding: 10px 12px !important;
+  }
+
+  td {
+    color: #334155 !important;
+    font-size: 10pt !important;
+    padding: 10px 12px !important;
+  }
+
+  th, td {
+    text-align: left !important;
+  }
+
+  /* Force headers and text colors to print in readable dark shades instead of white */
+  h1, h2, h3, h4, h5, h6, span, p, div {
+    color: #000000 !important;
+    text-shadow: none !important;
+    background: transparent !important;
+  }
+
+  h1, h2, h3 {
+    font-size: 18pt !important;
+    font-weight: 800 !important;
+    letter-spacing: normal !important;
+    margin-bottom: 8px !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Visual accents for lists and statistics cards */
+  .grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 15px !important;
+    margin-bottom: 25px !important;
+  }
+
+  .bg-black\/40, .bg-gray-900\/10 {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+  }
+
+  /* Specific typography for printing prices and totals */
+  .text-white {
+    color: #000000 !important;
+  }
+
+  .text-green-500 {
+    color: #166534 !important; /* Premium dark forest green */
+  }
+
+  .text-orange-600 {
+    color: #ea580c !important; /* Premium branding color */
+  }
+
+  .text-blue-500 {
+    color: #1e40af !important; /* Premium dark blue */
+  }
+
+  .text-red-500 {
+    color: #991b1b !important; /* Premium dark red */
+  }
+
+  /* Badges status wrapper styling for paper */
+  .rounded-md {
+    border: 1px solid #cbd5e1 !important;
+    padding: 2px 6px !important;
+    font-size: 8pt !important;
+    font-weight: bold !important;
+  }
+
+  /* For nested page elements */
+  .page-break-before {
+    page-break-before: always !important;
+  }
+}

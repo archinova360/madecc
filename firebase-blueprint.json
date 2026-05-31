@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Construction projects being tracked",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "client": { "type": "string" },
+        "status": { "type": "string", "enum": ["Planning", "In Progress", "Completed", "On Hold"] },
+        "budget": { "type": "number" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "client", "status", "budget"]
+    },
+    "Contract": {
+      "title": "Contract",
+      "description": "Signed legal agreements",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "title": { "type": "string" },
+        "signedDate": { "type": "string", "format": "date-time" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Terminated", "Fulfilled"] }
+      },
+      "required": ["projectId", "title", "amount"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Labor costs and material payments",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["Labor", "Material", "Utility", "Other"] },
+        "description": { "type": "string" }
+      },
+      "required": ["amount", "date", "type"]
+    },
+    "Employee": {
+      "title": "Employee",
+      "description": "Staff and labor records",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "salary": { "type": "number" },
+        "contact": { "type": "string" },
+        "joinedDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "role"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Sent to clients for billing",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Draft", "Sent", "Paid", "Overdue"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" },
+              "total": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["projectId", "invoiceNumber", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/projects": { "schema": "Project", "description": "Collection of projects" },
+    "/contracts": { "schema": "Contract", "description": "Collection of signed contracts" },
+    "/payments": { "schema": "Payment", "description": "Collection of financial transactions" },
+    "/employees": { "schema": "Employee", "description": "Collection of employee records" },
+    "/invoices": { "schema": "Invoice", "description": "Collection of invoices" }
+  }
+}

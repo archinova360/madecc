@@ -1,0 +1,10 @@
+{
+  "name": "MADECC Construction Group",
+  "description": "MADECC is a premier precision engineering and construction firm specializing in modern structural design and sustainable infrastructure. We build future legacies through innovation and unwavering commitment.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
