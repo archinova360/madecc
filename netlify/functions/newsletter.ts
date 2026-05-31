@@ -39,65 +39,30 @@ const {
 } = process.env;
 
 if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-  return {
-    statusCode: 500,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      error: "SMTP configuration missing.",
-    }),
-  };
+  throw new Error("SMTP configuration missing.");
 }
 
-const isGmail =
-  SMTP_HOST.includes("gmail.com") ||
-  SMTP_USER.includes("@gmail.com");
-
-const transporter = nodemailer.createTransport(
-  isGmail
-    ? {
-        service: "gmail",
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS,
-        },
-      }
-    : {
-        host: SMTP_HOST,
-        port: Number(SMTP_PORT || 587),
-        secure: SMTP_PORT === "465",
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS,
-        },
-      }
-);
+const transporter = nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: Number(SMTP_PORT || 587),
+  secure: Number(SMTP_PORT) === 465,
+  auth: {
+    user: SMTP_USER,
+    pass: SMTP_PASS,
+  },
+});
 
 await transporter.verify();
 
 await transporter.sendMail({
-  from: `"MADECC Newsletter" <${SMTP_USER}>`,
+  from: `MADECC Newsletter <${SMTP_USER}>`,
   to: CONTACT_RECEIVER_EMAIL || "madeccco5@gmail.com",
   replyTo: email,
   subject: "New Newsletter Subscription",
-  text: `A new visitor subscribed to the MADECC newsletter.\n\nSubscriber Email: ${email}`,
+  text: `New subscriber: ${email}`,
   html: `
-    <div style="font-family:Arial,sans-serif;padding:20px;">
-      <h2 style="color:#ea580c;">New Newsletter Subscription</h2>
-      <p>A visitor has subscribed to the MADECC newsletter.</p>
-
-      <table style="border-collapse:collapse;margin-top:15px;">
-        <tr>
-          <td style="padding:8px;font-weight:bold;">Subscriber Email:</td>
-          <td style="padding:8px;">${email}</td>
-        </tr>
-      </table>
-
-      <p style="margin-top:20px;color:#666;font-size:12px;">
-        Sent automatically from the MADECC website newsletter form.
-      </p>
-    </div>
+    <h2>New Newsletter Subscription</h2>
+    <p><strong>Email:</strong> ${email}</p>
   `,
 });
 
@@ -108,7 +73,7 @@ return {
   },
   body: JSON.stringify({
     success: true,
-    message: "Thanks, Subscription successfully.",
+    message: "Subscription successful.",
   }),
 };
 ```
