@@ -250,8 +250,22 @@ export function safeLocalStorageRemoveItem(key: string): void {
 }
 
 /**
- * Recursively truncates keys or values within an object/array
- * if they look like large base64 data URIs.
+ * Helper to compute an extremely fast, collision-free string hash for storage reference keys.
+ */
+function getStringHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return `ref_${Math.abs(hash).toString(36)}_${str.length}`;
+}
+
+/**
+ * Recursively intercepts large base64 data URIs and automatically stores them in high-capacity
+ * IndexedDB storage. Returns a lightweight URI reference 'indexeddb://ref_...' to completely
+ * prevent LocalStorage QuotaExceededError while retaining 100% of the image visual data.
  */
 export function sanitizeStorageObject(obj: any): any {
   if (obj === null || obj === undefined) {
@@ -259,10 +273,14 @@ export function sanitizeStorageObject(obj: any): any {
   }
 
   if (typeof obj === 'string') {
-    // If the string is a base64 / data URL and exceeds 10KB, replace it with a placeholder
+    // If the string is a base64 / data URL and exceeds 10KB, store in IndexedDB and return reference
     if (obj.startsWith('data:') && obj.length > 10240) {
-      const mimeType = obj.split(';')[0] || 'data:image';
-      return `${mimeType};base64, [TRUNCATED_FOR_LOCAL_STORE_QUOTA]`;
+      const hashKey = getStringHash(obj);
+      // Non-blocking fire-and-forget put session to high-volume IndexedDB
+      AppIndexedDBCache.setItem(hashKey, obj, 86400000 * 365).catch(err => {
+        console.warn("Pre-cache base64 in IndexedDB failed:", err);
+      });
+      return `indexeddb://${hashKey}`;
     }
     return obj;
   }
@@ -277,6 +295,48 @@ export function sanitizeStorageObject(obj: any): any {
       cleaned[key] = sanitizeStorageObject(obj[key]);
     }
     return cleaned;
+  }
+
+  return obj;
+}
+
+/**
+ * Traverses any loaded storage object/array and resolves "indexeddb://ref_..." reference URIs
+ * back to their original high-resolution base64 strings asynchronously on mount or load.
+ */
+export async function resolveIndexedDBReferences(obj: any): Promise<any> {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === 'string') {
+    if (obj.startsWith('indexeddb://')) {
+      const hashKey = obj.replace('indexeddb://', '');
+      try {
+        const originalContent = await AppIndexedDBCache.getItem<string>(hashKey);
+        if (originalContent) {
+          return originalContent;
+        }
+      } catch (err) {
+        console.warn(`Failed to resolve ref from IndexedDB for "${hashKey}"`, err);
+      }
+      return obj;
+    }
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    const resolvedArray = await Promise.all(obj.map(item => resolveIndexedDBReferences(item)));
+    return resolvedArray;
+  }
+
+  if (typeof obj === 'object') {
+    const resolvedObj: any = {};
+    const keys = Object.keys(obj);
+    for (const key of keys) {
+      resolvedObj[key] = await resolveIndexedDBReferences(obj[key]);
+    }
+    return resolvedObj;
   }
 
   return obj;

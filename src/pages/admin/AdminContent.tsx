@@ -149,18 +149,39 @@ export default function AdminContent() {
     });
   };
 
+  // Helper to upload base64 files to backend immediately
+  const uploadFileToBackend = async (filename: string, fileType: string, base64Data: string): Promise<string> => {
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, fileType, base64Data }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.url) {
+          return result.url;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to upload file to backend, using inline base64 fallback:", err);
+    }
+    return base64Data;
+  };
+
   const handleCropSave = async () => {
     if (imageToCrop && croppedAreaPixels && croppingSource) {
       try {
         const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels);
+        const serverUrl = await uploadFileToBackend("cropped_image.jpg", "image/jpeg", croppedImage);
         
         if (croppingSource.type === 'featured') {
-          setEditingItem(prev => ({ ...prev, image: croppedImage }));
+          setEditingItem(prev => ({ ...prev, image: serverUrl }));
         } else if (croppingSource.type === 'gallery' && croppingSource.id) {
           setEditingItem(prev => ({
             ...prev,
             gallery: prev?.gallery?.map(asset => 
-              asset.id === croppingSource.id ? { ...asset, url: croppedImage } : asset
+              asset.id === croppingSource.id ? { ...asset, url: serverUrl } : asset
             )
           }));
         }
@@ -179,15 +200,17 @@ export default function AdminContent() {
     if (files) {
       Array.from(files).forEach((file: File) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onloadend = async () => {
           const type = file.type.startsWith('video') ? 'video' : 'image';
+          const serverUrl = await uploadFileToBackend(file.name, file.type, reader.result as string);
+          
           setEditingItem(prev => ({
             ...prev,
             gallery: [
               ...(prev?.gallery || []),
               { 
                 type: type as 'image' | 'video', 
-                url: reader.result as string, 
+                url: serverUrl, 
                 id: Math.random().toString(36).substr(2, 9),
                 size: file.size,
                 name: file.name
@@ -204,16 +227,17 @@ export default function AdminContent() {
     const files = e.target.files;
     if (files) {
       Array.from(files).forEach((file: File) => {
-        // We'll store the name, size and local URL
         const reader = new FileReader();
-        reader.onloadend = () => {
+        reader.onloadend = async () => {
+          const serverUrl = await uploadFileToBackend(file.name, file.type, reader.result as string);
+          
           setEditingItem(prev => ({
             ...prev,
             attachments: [
               ...(prev?.attachments || []),
               { 
                 name: file.name, 
-                url: reader.result as string, 
+                url: serverUrl, 
                 id: Math.random().toString(36).substr(2, 9),
                 size: file.size
               }

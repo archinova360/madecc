@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { safeLocalStorageSetItem, safeLocalStorageGetItem } from '../../utils/storage';
+import { safeLocalStorageSetItem, safeLocalStorageGetItem, resolveIndexedDBReferences } from '../../utils/storage';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
@@ -125,44 +125,47 @@ export default function AdminContracts() {
   // Load from server on mount with offline fallback cache
   useEffect(() => {
     const loadContracts = async () => {
+      // 1. Instantly load and resolve cached Contracts from IndexedDB
+      const cached = safeLocalStorageGetItem('madecc_cache_contracts');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const resolved = await resolveIndexedDBReferences(parsed);
+            setContracts(resolved);
+            setLoadedFromCache(true);
+          }
+        } catch(err) {
+          console.error("Local storage contracts restoration failed, applying defaults:", err);
+        }
+      }
+
       const forceOffline = localStorage.getItem('madecc_force_offline') === 'true';
       if (forceOffline) {
-        console.warn("Forced Offline mode: checking local cache for contracts...");
-        const cached = safeLocalStorageGetItem('madecc_cache_contracts');
-        if (cached) {
-          try {
-            setContracts(JSON.parse(cached));
-            setLoadedFromCache(true);
-          } catch(err) {
-            console.error(err);
-          }
-        }
         setIsInitialized(true);
         return;
       }
 
+      // 2. Safely synchronize from server
       try {
         const res = await fetch('/api/store/contracts');
         const data = await res.json();
         if (data && Array.isArray(data)) {
-          setContracts(data);
-          safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(data));
+          const resolved = await resolveIndexedDBReferences(data);
+          setContracts(resolved);
+          safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(resolved));
           setLoadedFromCache(false);
         } else {
-          safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(mockContracts));
+          // Server returned non-array payload. Avoid overwriting local cache.
+          if (!cached) {
+            setContracts(mockContracts);
+            safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(mockContracts));
+          }
         }
       } catch (e) {
         console.warn("Storage sync failed, loading from local backup cache", e);
-        const cached = safeLocalStorageGetItem('madecc_cache_contracts');
-        if (cached) {
-          try {
-            setContracts(JSON.parse(cached));
-            setLoadedFromCache(true);
-          } catch(err) {
-            console.error("Failed to parse cached contracts", err);
-          }
-        } else {
-          // If completely empty, backfill with default
+        if (!cached) {
+          setContracts(mockContracts);
           safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(mockContracts));
         }
       } finally {
@@ -245,11 +248,32 @@ export default function AdminContracts() {
 
     if (selectedFile) {
       documentName = selectedFile.name;
-      documentUrl = await new Promise((resolve) => {
+      const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
         reader.readAsDataURL(selectedFile);
       });
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: selectedFile.name, fileType: selectedFile.type, base64Data: base64 }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          if (result.success && result.url) {
+            documentUrl = result.url;
+          } else {
+            documentUrl = base64;
+          }
+        } else {
+          documentUrl = base64;
+        }
+      } catch (err) {
+        console.error("Failed to upload PDF contract, fallback to raw base64 data", err);
+        documentUrl = base64;
+      }
     }
 
     if (editingContractId) {

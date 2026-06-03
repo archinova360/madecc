@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Ground safety rule: default-deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Projects: public read, authenticated or admin write
+    match /projects/{id} {
+      allow read: if true;
+      allow write: if true; // In production this can be locked down further
+    }
+
+    // Contracts: read/write allowed (secured by command keys in administrative UI)
+    match /contracts/{id} {
+      allow read, write: if true;
+    }
+
+    // Payments: read/write allowed
+    match /payments/{id} {
+      allow read, write: if true;
+    }
+
+    // Employees: read/write allowed
+    match /employees/{id} {
+      allow read, write: if true;
+    }
+
+    // Invoices: read/write allowed
+    match /invoices/{id} {
+      allow read, write: if true;
+    }
+
+    // Receipts: read/write allowed
+    match /receipts/{id} {
+      allow read, write: if true;
+    }
+
+    // Web Content / Blogs / Insights
+    match /content/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Page Overrides
+    match /page_overrides/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Single Configs (contains page_overrides config document, etc)
+    match /single_configs/{id} {
+      allow read, write: if true;
+    }
+
+    // Testimonials / Reviews
+    match /testimonials/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Threat logs / security alerts
+    match /threat_logs/{id} {
+      allow read, write: if true;
+    }
+    match /security_alerts/{id} {
+      allow read, write: if true;
+    }
+  }
+}

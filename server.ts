@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
+import { getFirestoreStoreData, saveFirestoreStoreData } from "./src/utils/firebaseServer";
 
 const SECURITY_STORE_PATH = path.join(process.cwd(), "security_store.json");
 const DATA_STORES_DIR = path.join(process.cwd(), "stores");
@@ -46,7 +47,23 @@ function sanitizeStoreObject(obj: any): any {
   return obj;
 }
 
-async function getStoreData(name: string): Promise<any[] | null> {
+async function getStoreData(name: string): Promise<any | null> {
+  // 1. Try to load directly from Firestore first
+  try {
+    const remoteData = await getFirestoreStoreData(name);
+    if (remoteData) {
+      console.log(`[STORAGE-SYNC] Successfully retrieved [${name}] from Cloud Firestore.`);
+      // Sync local disk file to keep them in-sync as a fallback/cache
+      const storePath = getStorePath(name);
+      const sanitized = sanitizeStoreObject(remoteData);
+      await fs.promises.writeFile(storePath, JSON.stringify(sanitized, null, 2));
+      return remoteData;
+    }
+  } catch (err) {
+    console.warn(`[STORAGE-SYNC] Cloud database read failed for [${name}], checking local files...`, err);
+  }
+
+  // 2. Fallback to local files if offline/not ready
   const storePath = getStorePath(name);
   if (!fs.existsSync(storePath)) {
     return null;
@@ -79,10 +96,20 @@ async function getStoreData(name: string): Promise<any[] | null> {
   }
 }
 
-async function saveStoreData(name: string, data: any[]) {
+async function saveStoreData(name: string, data: any) {
   const storePath = getStorePath(name);
   const sanitized = sanitizeStoreObject(data);
+
+  // 1. Local FS persist
   await fs.promises.writeFile(storePath, JSON.stringify(sanitized, null, 2));
+
+  // 2. Remote Firestore sync
+  try {
+    await saveFirestoreStoreData(name, sanitized);
+    console.log(`[STORAGE-SYNC] Successfully synchronized [${name}] with Cloud Firestore.`);
+  } catch (err) {
+    console.warn(`[STORAGE-SYNC] Could not sync [${name}] to Firestore:`, err);
+  }
 }
 
 // Lazy helper for Gemini API to prevent crash on startup if key is empty/not configured
@@ -154,6 +181,13 @@ async function startServer() {
 
     app.use(express.json({ limit: '200mb' }));
     app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+    // Ensure state/media uploads directory exists and is served statically
+    const uploadsPath = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(uploadsPath)) {
+      fs.mkdirSync(uploadsPath, { recursive: true });
+    }
+    app.use("/uploads", express.static(uploadsPath));
 
     // API Route for Contact Form
     app.post("/api/contact", async (req, res) => {
@@ -442,6 +476,64 @@ async function startServer() {
       store.lastRotation = new Date().toISOString();
       saveSecurityStore(store);
       res.json({ success: true, keys: store.keys });
+    });
+
+    // MEDIA UPLOAD API - Converts base64 uploads to real backend static files
+    app.post("/api/upload", async (req, res) => {
+      const { filename, fileType, base64Data } = req.body;
+      if (!base64Data) {
+        return res.status(400).json({ error: "No base64Data provided" });
+      }
+
+      try {
+        // Parse base64 parts
+        const parts = base64Data.split(';base64,');
+        if (parts.length < 2) {
+          return res.status(400).json({ error: "Invalid data URL format" });
+        }
+
+        const header = parts[0]; // e.g. "data:image/jpeg"
+        const base64Content = parts[1];
+
+        // Retrieve extension
+        let ext = "bin";
+        const mimeMatch = header.match(/data:(.*?)$/);
+        if (mimeMatch && mimeMatch[1]) {
+          const mimeType = mimeMatch[1];
+          const typeExt = mimeType.split("/")[1];
+          if (typeExt) {
+            ext = typeExt.split("+")[0]; // remove format suffix details like svg+xml
+          }
+        }
+
+        // Clean up name
+        const cleanName = filename 
+          ? filename.toLowerCase().replace(/[^a-z0-9._-]/g, "") 
+          : "media";
+        
+        // Remove existing extension from cleanName to prevent filename.jpg.jpg
+        const dotIdx = cleanName.lastIndexOf(".");
+        const nameWithoutExt = dotIdx !== -1 ? cleanName.substring(0, dotIdx) : cleanName;
+
+        const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${nameWithoutExt}.${ext}`;
+
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const filePath = path.join(uploadsDir, safeName);
+        await fs.promises.writeFile(filePath, Buffer.from(base64Content, 'base64'));
+
+        console.log(`[MEDIA-UPLOAD] Successfully saved uploaded raw media: [${safeName}] to [${filePath}]`);
+
+        // Return server-relative public URL
+        const fileUrl = `/uploads/${safeName}`;
+        res.json({ success: true, url: fileUrl });
+      } catch (err: any) {
+        console.error("[MEDIA-UPLOAD] Failed to save media file to backend disk:", err);
+        res.status(500).json({ error: "Failed to write media to backend server disks." });
+      }
     });
 
     // GENERIC DATA STORE API

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { safeLocalStorageSetItem, safeLocalStorageGetItem } from '../utils/storage';
+import { safeLocalStorageSetItem, safeLocalStorageGetItem, resolveIndexedDBReferences } from '../utils/storage';
 
 export interface SEOConfig {
   title: string;
@@ -243,13 +243,42 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
   // Load from server on mount
   useEffect(() => {
     const loadContent = async () => {
+      // 1. Instantly load and resolve references from the local cache on mount
+      const cachedContent = safeLocalStorageGetItem('madecc_cache_content');
+      if (cachedContent) {
+        try {
+          const parsed = JSON.parse(cachedContent);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const resolved = await resolveIndexedDBReferences(parsed);
+            setContent(resolved);
+          }
+        } catch (e) {
+          console.warn("Local storage cache restoration failed, applying default state:", e);
+        }
+      }
+
+      const cachedOverrides = safeLocalStorageGetItem('madecc_cache_page_overrides');
+      if (cachedOverrides) {
+        try {
+          const parsed = JSON.parse(cachedOverrides);
+          if (parsed && typeof parsed === 'object' && parsed.heroHeading) {
+            const resolved = await resolveIndexedDBReferences(parsed);
+            setPageOverrides(resolved);
+          }
+        } catch (e) {
+          console.warn("Local page overrides cache restoration failed, applying default state:", e);
+        }
+      }
+
+      // 2. Synchronize asynchronously with the backend server/database
       try {
         const res = await fetch('/api/store/content');
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data)) {
-            setContent(data);
-            safeLocalStorageSetItem('madecc_cache_content', JSON.stringify(data));
+            const resolved = await resolveIndexedDBReferences(data);
+            setContent(resolved);
+            safeLocalStorageSetItem('madecc_cache_content', JSON.stringify(resolved));
           }
         }
       } catch (e) {
@@ -261,8 +290,9 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           if (data && typeof data === 'object' && !data.default && data.heroHeading) {
-            setPageOverrides(data);
-            safeLocalStorageSetItem('madecc_cache_page_overrides', JSON.stringify(data));
+            const resolved = await resolveIndexedDBReferences(data);
+            setPageOverrides(resolved);
+            safeLocalStorageSetItem('madecc_cache_page_overrides', JSON.stringify(resolved));
           }
         }
       } catch (e) {

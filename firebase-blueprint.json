@@ -63,21 +63,47 @@
         "invoiceNumber": { "type": "string" },
         "amount": { "type": "number" },
         "date": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["Draft", "Sent", "Paid", "Overdue"] },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "description": { "type": "string" },
-              "quantity": { "type": "number" },
-              "unitPrice": { "type": "number" },
-              "total": { "type": "number" }
-            }
-          }
-        }
+        "status": { "type": "string", "enum": ["Draft", "Sent", "Paid", "Overdue"] }
       },
       "required": ["projectId", "invoiceNumber", "amount", "status"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Digital receipts of construction cost",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["label", "amount", "date"]
+    },
+    "Content": {
+      "title": "Content",
+      "description": "Web content like blog insights",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["title", "content"]
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "Client reviews",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "content": { "type": "string" },
+        "rating": { "type": "number" }
+      },
+      "required": ["name", "content"]
     }
   },
   "firestore": {
@@ -85,6 +111,9 @@
     "/contracts": { "schema": "Contract", "description": "Collection of signed contracts" },
     "/payments": { "schema": "Payment", "description": "Collection of financial transactions" },
     "/employees": { "schema": "Employee", "description": "Collection of employee records" },
-    "/invoices": { "schema": "Invoice", "description": "Collection of invoices" }
+    "/invoices": { "schema": "Invoice", "description": "Collection of invoices" },
+    "/receipts": { "schema": "Receipt", "description": "Collection of digital receipts" },
+    "/content": { "schema": "Content", "description": "Collection of web content / blog insights" },
+    "/testimonials": { "schema": "Testimonial", "description": "Collection of client ratings and reviews" }
   }
 }

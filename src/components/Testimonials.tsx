@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Quote, Send, Star, X, MessageSquare, Check } from "lucide-react";
-import { safeLocalStorageSetItem, safeLocalStorageGetItem } from "../utils/storage";
+import { safeLocalStorageSetItem, safeLocalStorageGetItem, resolveIndexedDBReferences } from "../utils/storage";
 
 const DEFAULT_TESTIMONIALS = [
   {
@@ -49,13 +49,29 @@ export default function Testimonials() {
   // Load from server on mount
   useEffect(() => {
     const loadTestimonials = async () => {
+      // 1. Instantly load from local storage cache & resolve IndexedDB references
+      const cached = safeLocalStorageGetItem('madecc_cache_testimonials');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const resolved = await resolveIndexedDBReferences(parsed);
+            setTestimonials(resolved);
+          }
+        } catch (e) {
+          console.warn("Local storage testimonials restoration failed:", e);
+        }
+      }
+
+      // 2. Try to synchronize from central reviews
       try {
         const res = await fetch('/api/store/testimonials');
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data)) {
-            setTestimonials(data);
-            safeLocalStorageSetItem('madecc_cache_testimonials', JSON.stringify(data));
+            const resolved = await resolveIndexedDBReferences(data);
+            setTestimonials(resolved);
+            safeLocalStorageSetItem('madecc_cache_testimonials', JSON.stringify(resolved));
           }
         }
       } catch (e) {

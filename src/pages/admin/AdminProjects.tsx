@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { safeLocalStorageSetItem, safeLocalStorageGetItem } from '../../utils/storage';
+import { safeLocalStorageSetItem, safeLocalStorageGetItem, resolveIndexedDBReferences } from '../../utils/storage';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
@@ -192,43 +192,49 @@ export default function AdminProjects() {
   // Load projects from server, falling back to local cache or defaults if offline
   useEffect(() => {
     const loadProjects = async () => {
+      // 1. Instantly load from local storage cache & resolve IndexedDB references
+      const cached = safeLocalStorageGetItem('madecc_cache_projects');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const resolved = await resolveIndexedDBReferences(parsed);
+            setProjects(resolved);
+            setLoadedFromCache(true);
+          }
+        } catch(err) {
+          console.error("Local storage cache restoration failed, applying default state:", err);
+        }
+      }
+
       const forceOffline = localStorage.getItem('madecc_force_offline') === 'true';
       if (forceOffline) {
-        console.warn("Forced Offline mode: checking local cache for projects...");
-        const cached = safeLocalStorageGetItem('madecc_cache_projects');
-        if (cached) {
-          try {
-            setProjects(JSON.parse(cached));
-            setLoadedFromCache(true);
-          } catch(err) {
-            console.error(err);
-          }
-        }
         setIsInitialized(true);
         return;
       }
 
+      // 2. Try to synchronize from central database store
       try {
         const res = await fetch('/api/store/projects');
         const data = await res.json();
         if (data && Array.isArray(data)) {
-          setProjects(data);
-          safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(data));
+          const resolved = await resolveIndexedDBReferences(data);
+          setProjects(resolved);
+          safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(resolved));
           setLoadedFromCache(false);
         } else {
-          safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(mockProjects));
+          // Server returned non-array response, do NOT overwrite cache!
+          // Only backfill if we have no active projects loaded
+          if (!cached) {
+            setProjects(mockProjects);
+            safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(mockProjects));
+          }
         }
       } catch (e) {
-        console.warn("Projects sync failed, loading from local backup cache", e);
-        const cached = safeLocalStorageGetItem('madecc_cache_projects');
-        if (cached) {
-          try {
-            setProjects(JSON.parse(cached));
-            setLoadedFromCache(true);
-          } catch(err) {
-            console.error(err);
-          }
-        } else {
+        console.warn("Projects sync failed, fallback using local cache", e);
+        // If catch triggers (e.g. 404 or SyntaxError parsing HTML), keep our previously loaded cache
+        if (!cached) {
+          setProjects(mockProjects);
           safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(mockProjects));
         }
       } finally {

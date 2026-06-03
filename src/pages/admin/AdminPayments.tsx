@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   CreditCard, 
@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 
 import { PermissionGate } from '../../components/admin/PermissionGate';
+import { resolveIndexedDBReferences } from '../../utils/storage';
 
 const paymentHistory = [
   { id: '1', recipient: 'Ahmed Hassan', amount: 3200, date: '2026-05-08', type: 'Labor Salary', status: 'Completed' },
@@ -73,6 +74,13 @@ export default function AdminPayments() {
   const [payments, setPayments] = useState(paymentHistory);
   const [searchTerm, setSearchTerm] = useState('');
   const [isMounted, setIsMounted] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [formData, setFormData] = useState({
+    recipient: '',
+    amount: '',
+    type: 'Labor Salary',
+    date: new Date().toISOString().split('T')[0]
+  });
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -80,6 +88,45 @@ export default function AdminPayments() {
     }, 150);
     return () => clearTimeout(timer);
   }, []);
+
+  // Load from server on mount
+  useEffect(() => {
+    const loadPayments = async () => {
+      try {
+        const res = await fetch('/api/store/payments');
+        const data = await res.json();
+        if (data && Array.isArray(data)) {
+          const resolved = await resolveIndexedDBReferences(data);
+          setPayments(resolved);
+        }
+      } catch (e) {
+        console.warn("Ledger transaction sync failed, using defaults", e);
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+    loadPayments();
+  }, []);
+
+  // Save to server whenever payments change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const syncPayments = async () => {
+      try {
+        await fetch('/api/store/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payments }),
+        });
+      } catch (e) {
+        console.error("Critical financial ledger failure: sync failed", e);
+      }
+    };
+
+    const timeout = setTimeout(syncPayments, 1000);
+    return () => clearTimeout(timeout);
+  }, [payments, isInitialized]);
 
   const filteredPayments = payments.filter(p => 
     (p.recipient || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,8 +161,30 @@ export default function AdminPayments() {
 
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Payment transaction recorded in ledger.');
+    if (!formData.recipient || !formData.amount) {
+      alert("Please provide recipient and amount.");
+      return;
+    }
+
+    const newPayment = {
+      id: Math.random().toString(36).substring(2, 11),
+      recipient: formData.recipient,
+      amount: parseFloat(formData.amount) || 0,
+      date: formData.date,
+      type: formData.type,
+      status: 'Completed'
+    };
+
+    setPayments([newPayment, ...payments]);
     setIsModalOpen(false);
+
+    // Reset form fields
+    setFormData({
+      recipient: '',
+      amount: '',
+      type: 'Labor Salary',
+      date: new Date().toISOString().split('T')[0]
+    });
   };
 
   return (
@@ -337,6 +406,8 @@ export default function AdminPayments() {
                 <input 
                   required
                   type="text" 
+                  value={formData.recipient}
+                  onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
                   className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:border-orange-600 outline-none transition-colors"
                   placeholder="Employee or Supplier name"
                 />
@@ -347,16 +418,22 @@ export default function AdminPayments() {
                   <input 
                     required
                     type="number" 
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:border-orange-600 outline-none transition-colors"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Category</label>
-                  <select className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:border-orange-600 outline-none transition-colors appearance-none">
-                    <option>Labor Salary</option>
-                    <option>Materials</option>
-                    <option>Subcontractor</option>
-                    <option>Overhead</option>
+                  <select 
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:border-orange-600 outline-none transition-colors appearance-none"
+                  >
+                    <option value="Labor Salary">Labor Salary</option>
+                    <option value="Materials">Materials</option>
+                    <option value="Subcontractor">Subcontractor</option>
+                    <option value="Overhead">Overhead</option>
                   </select>
                 </div>
               </div>
@@ -365,6 +442,8 @@ export default function AdminPayments() {
                 <input 
                   required
                   type="date" 
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:border-orange-600 outline-none transition-colors"
                 />
               </div>
