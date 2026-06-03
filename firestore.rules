@@ -54,6 +54,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Uploaded Media (contains base64 encoded static assets for serverless fallback)
+    match /uploaded_media/{id} {
+      allow read, write: if true;
+    }
+
     // Testimonials / Reviews
     match /testimonials/{id} {
       allow read: if true;

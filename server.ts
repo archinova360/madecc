@@ -5,7 +5,8 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
-import { getFirestoreStoreData, saveFirestoreStoreData } from "./src/utils/firebaseServer";
+import { getFirestoreStoreData, saveFirestoreStoreData, db } from "./src/utils/firebaseServer";
+import { doc, setDoc } from "firebase/firestore";
 
 const SECURITY_STORE_PATH = path.join(process.cwd(), "security_store.json");
 const DATA_STORES_DIR = path.join(process.cwd(), "stores");
@@ -188,6 +189,13 @@ async function startServer() {
       fs.mkdirSync(uploadsPath, { recursive: true });
     }
     app.use("/uploads", express.static(uploadsPath));
+
+    // Ensure src/assets/images exists and is served statically
+    const assetsImagesPath = path.join(process.cwd(), "src", "assets", "images");
+    if (!fs.existsSync(assetsImagesPath)) {
+      fs.mkdirSync(assetsImagesPath, { recursive: true });
+    }
+    app.use("/src/assets/images", express.static(assetsImagesPath));
 
     // API Route for Contact Form
     app.post("/api/contact", async (req, res) => {
@@ -517,18 +525,40 @@ async function startServer() {
 
         const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${nameWithoutExt}.${ext}`;
 
+        // Ensure user requested path src/assets/images exists
+        const assetsBaseDir = path.join(process.cwd(), "src", "assets", "images");
+        if (!fs.existsSync(assetsBaseDir)) {
+          fs.mkdirSync(assetsBaseDir, { recursive: true });
+        }
+        const assetsFilePath = path.join(assetsBaseDir, safeName);
+        await fs.promises.writeFile(assetsFilePath, Buffer.from(base64Content, 'base64'));
+        console.log(`[MEDIA-UPLOAD] Successfully saved uploaded raw media: [${safeName}] to assets: [${assetsFilePath}]`);
+
+        // Also save to standard uploads fallback
         const uploadsDir = path.join(process.cwd(), "public", "uploads");
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }
+        const uploadsFilePath = path.join(uploadsDir, safeName);
+        await fs.promises.writeFile(uploadsFilePath, Buffer.from(base64Content, 'base64'));
 
-        const filePath = path.join(uploadsDir, safeName);
-        await fs.promises.writeFile(filePath, Buffer.from(base64Content, 'base64'));
+        // Replicate to Cloud Firestore 'uploaded_media' collection for cloud serverless sync
+        try {
+          const docRef = doc(db, "uploaded_media", safeName);
+          await setDoc(docRef, {
+            id: safeName,
+            filename: safeName,
+            contentType: mimeMatch && mimeMatch[1] ? mimeMatch[1] : "application/octet-stream",
+            base64: base64Content,
+            createdAt: new Date().toISOString()
+          });
+          console.log(`[MEDIA-UPLOAD-SYNC] Successfully simulated and synced [${safeName}] metadata to Cloud Firestore database.`);
+        } catch (dbErr) {
+          console.warn("[MEDIA-UPLOAD-SYNC] Database sync skipped or failed (unmitigated offline mode check):", dbErr);
+        }
 
-        console.log(`[MEDIA-UPLOAD] Successfully saved uploaded raw media: [${safeName}] to [${filePath}]`);
-
-        // Return server-relative public URL
-        const fileUrl = `/uploads/${safeName}`;
+        // Return server-relative public URL pointing to src/assets/images
+        const fileUrl = `/src/assets/images/${safeName}`;
         res.json({ success: true, url: fileUrl });
       } catch (err: any) {
         console.error("[MEDIA-UPLOAD] Failed to save media file to backend disk:", err);
@@ -550,8 +580,8 @@ async function startServer() {
     app.post("/api/store/:name", async (req, res) => {
       const { name } = req.params;
       const { data } = req.body;
-      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
-        return res.status(400).json({ error: "Invalid data payload" });
+      if (data === undefined) {
+        return res.status(400).json({ error: "Invalid data payload: 'data' property is required" });
       }
       try {
         await saveStoreData(name, data);

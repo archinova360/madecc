@@ -9,6 +9,36 @@
   directory = "netlify/functions"
 
 [[redirects]]
+  from = "/src/assets/images/*"
+  to = "/.netlify/functions/uploads/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "/.netlify/functions/uploads/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/store/:name"
+  to = "/.netlify/functions/store?name=:name"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/keys"
+  to = "/.netlify/functions/admin?action=keys"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/keys/update"
+  to = "/.netlify/functions/admin?action=keys/update"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/keys/rotate-all"
+  to = "/.netlify/functions/admin?action=keys/rotate-all"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200

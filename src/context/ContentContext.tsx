@@ -79,7 +79,7 @@ const DEFAULT_CONTENT: ContentItem[] = [
     title: 'The Future of Sustainable Urban Concrete',
     category: 'Innovation',
     date: '2023-10-24',
-    image: 'https://images.unsplash.com/photo-1590644365607-1c5a519a7a37?auto=format&fit=crop&q=80&w=2070',
+    image: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=2070',
     status: 'Published',
     seo: {
       title: 'Sustainable Urban Concrete Trends 2026 | MADECC Insights',
@@ -93,7 +93,7 @@ const DEFAULT_CONTENT: ContentItem[] = [
     title: 'Operational Integrity: The Backbone of MADECC',
     category: 'Corporate',
     date: '2024-03-12',
-    image: 'https://images.unsplash.com/photo-1454165833767-13009d300067?auto=format&fit=crop&q=80&w=2070',
+    image: 'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?auto=format&fit=crop&q=80&w=2070',
     status: 'Published',
     seo: {
       title: 'MADECC Corporate Governance | Accounting & Admin Excellence',
@@ -107,9 +107,9 @@ const DEFAULT_CONTENT: ContentItem[] = [
     title: 'Building in Tropical Climates: Challenges & Solutions',
     category: 'Engineering',
     date: '2024-05-10',
-    image: 'https://images.unsplash.com/photo-1449156001931-82833cc74030?auto=format&fit=crop&q=80&w=2070',
+    image: 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=2070',
     status: 'Published',
-    description: 'In-depth analysis of structural thermal regulation in equatorial zones. This dispatch explores the implementation of high-thermal-mass materials and passive cooling systems in high-density urban environments across tropical latitudes.',
+    description: 'In-depth analysis of structural thermal regulation in equatorial zones. This dispatch explores the implementation of high-thermal-mass materials and passive cooling systems in high-density urban environments across tropical climates.',
     seo: {
       title: 'Structural Engineering for Tropical Climates | MADECC Dispatches',
       description: 'Technical insights into thermal regulation and structural resilience in equatorial engineering projects.',
@@ -122,7 +122,7 @@ const DEFAULT_CONTENT: ContentItem[] = [
     title: 'The Rise of Modular Construction in Commercial Real Estate',
     category: 'Trends',
     date: '2024-04-22',
-    image: 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=2070',
+    image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=2070',
     status: 'Published',
     description: 'The shift from traditional on-site assembly to factory-controlled modular fabrication. Our report details how prefabricated components are reducing deployment timelines by 40% in continental commercial projects.',
     seo: {
@@ -137,7 +137,7 @@ const DEFAULT_CONTENT: ContentItem[] = [
     title: 'Standardizing Safety: Our 2026 OSHA Compliance Report',
     category: 'Policy',
     date: '2024-04-05',
-    image: 'https://images.unsplash.com/photo-1503387762-592dea58ef21?auto=format&fit=crop&q=80&w=2070',
+    image: 'https://images.unsplash.com/photo-1513829096999-4978602294fc?auto=format&fit=crop&q=80&w=2070',
     status: 'Published',
     description: 'A comprehensive review of upcoming regulatory shifts in site safety. MADECC highlights the integration of AI-driven risk assessment and real-time biometric monitoring for high-altitude labor compliance.',
     seo: {
@@ -167,7 +167,7 @@ const DEFAULT_CONTENT: ContentItem[] = [
     title: 'Infrastructure as Art: The Philosophy of Civil Works',
     category: 'Philosophy',
     date: '2024-02-28',
-    image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=2070',
+    image: 'https://images.unsplash.com/photo-1449034446853-66c86144b0ad?auto=format&fit=crop&q=80&w=2070',
     status: 'Published',
     description: 'Beyond utility—viewing bridges, dams, and highways as cultural artifacts. This piece discusses the responsibility of engineers to create works that inspire as much as they serve.',
     seo: {

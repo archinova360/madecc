@@ -39,6 +39,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Standard Guard: skip unsupported schemes (e.g. chrome-extension://, data:, about:, etc.)
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Focus caching on API store requests related to contracts, projects and web outputs
   if (url.pathname.includes('/api/store/contracts') || 
       url.pathname.includes('/api/store/projects') || 
@@ -57,9 +62,16 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => {
+        .catch(async () => {
           console.warn('[Service Worker] Offline on-site detect: falling back to dynamic API cache for:', url.pathname);
-          return caches.match(event.request);
+          const cachedResponse = await caches.match(event.request);
+          if (cachedResponse) return cachedResponse;
+          
+          // Return a valid JSON response so that offline queries do not crash downstream consumers
+          return new Response(JSON.stringify({ offline: true, data: [] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
         })
     );
     return;
@@ -80,10 +92,16 @@ self.addEventListener('fetch', (event) => {
       .catch(() => {
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse;
-          // Return offline text for routing fallback if needed
+          
           if (event.request.mode === 'navigate') {
             return caches.match('/index.html');
           }
+          
+          // Prevent TypeError: Failed to convert value to 'Response'
+          return new Response('Network resources unavailable offline.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' }
+          });
         });
       })
   );

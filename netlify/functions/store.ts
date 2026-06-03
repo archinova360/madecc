@@ -18,10 +18,8 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  // Extract the collection/store name from the last URL segment
-  // e.g. path "/api/store/projects" -> segments = ["api", "store", "projects"] -> name = "projects"
-  const segments = event.path.split("/").filter(Boolean);
-  const name = segments[segments.length - 1];
+  // Extract the collection/store name from query parameters or last URL segment
+  const name = event.queryStringParameters?.name || event.path.split("/").filter(Boolean).pop();
 
   if (!name) {
     return {
@@ -53,7 +51,7 @@ export const handler: Handler = async (event) => {
     
     if (event.httpMethod === "POST") {
       const { data } = JSON.parse(event.body || "{}");
-      if (!data) {
+      if (data === undefined) {
         return {
           statusCode: 400,
           headers,
