@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { safeLocalStorageSetItem, safeLocalStorageGetItem } from '../../utils/storage';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
@@ -127,7 +128,7 @@ export default function AdminContracts() {
       const forceOffline = localStorage.getItem('madecc_force_offline') === 'true';
       if (forceOffline) {
         console.warn("Forced Offline mode: checking local cache for contracts...");
-        const cached = localStorage.getItem('madecc_cache_contracts');
+        const cached = safeLocalStorageGetItem('madecc_cache_contracts');
         if (cached) {
           try {
             setContracts(JSON.parse(cached));
@@ -145,14 +146,14 @@ export default function AdminContracts() {
         const data = await res.json();
         if (data && Array.isArray(data)) {
           setContracts(data);
-          localStorage.setItem('madecc_cache_contracts', JSON.stringify(data));
+          safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(data));
           setLoadedFromCache(false);
         } else {
-          localStorage.setItem('madecc_cache_contracts', JSON.stringify(mockContracts));
+          safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(mockContracts));
         }
       } catch (e) {
         console.warn("Storage sync failed, loading from local backup cache", e);
-        const cached = localStorage.getItem('madecc_cache_contracts');
+        const cached = safeLocalStorageGetItem('madecc_cache_contracts');
         if (cached) {
           try {
             setContracts(JSON.parse(cached));
@@ -162,7 +163,7 @@ export default function AdminContracts() {
           }
         } else {
           // If completely empty, backfill with default
-          localStorage.setItem('madecc_cache_contracts', JSON.stringify(mockContracts));
+          safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(mockContracts));
         }
       } finally {
         setIsInitialized(true);
@@ -182,7 +183,7 @@ export default function AdminContracts() {
 
     const syncContracts = async () => {
       // Save locally first
-      localStorage.setItem('madecc_cache_contracts', JSON.stringify(contracts));
+      safeLocalStorageSetItem('madecc_cache_contracts', JSON.stringify(contracts));
 
       const forceOffline = localStorage.getItem('madecc_force_offline') === 'true';
       if (forceOffline) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { safeLocalStorageSetItem, safeLocalStorageGetItem } from '../../utils/storage';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { 
@@ -194,7 +195,7 @@ export default function AdminProjects() {
       const forceOffline = localStorage.getItem('madecc_force_offline') === 'true';
       if (forceOffline) {
         console.warn("Forced Offline mode: checking local cache for projects...");
-        const cached = localStorage.getItem('madecc_cache_projects');
+        const cached = safeLocalStorageGetItem('madecc_cache_projects');
         if (cached) {
           try {
             setProjects(JSON.parse(cached));
@@ -212,14 +213,14 @@ export default function AdminProjects() {
         const data = await res.json();
         if (data && Array.isArray(data)) {
           setProjects(data);
-          localStorage.setItem('madecc_cache_projects', JSON.stringify(data));
+          safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(data));
           setLoadedFromCache(false);
         } else {
-          localStorage.setItem('madecc_cache_projects', JSON.stringify(mockProjects));
+          safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(mockProjects));
         }
       } catch (e) {
         console.warn("Projects sync failed, loading from local backup cache", e);
-        const cached = localStorage.getItem('madecc_cache_projects');
+        const cached = safeLocalStorageGetItem('madecc_cache_projects');
         if (cached) {
           try {
             setProjects(JSON.parse(cached));
@@ -228,7 +229,7 @@ export default function AdminProjects() {
             console.error(err);
           }
         } else {
-          localStorage.setItem('madecc_cache_projects', JSON.stringify(mockProjects));
+          safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(mockProjects));
         }
       } finally {
         setIsInitialized(true);
@@ -248,7 +249,7 @@ export default function AdminProjects() {
 
     const syncProjects = async () => {
       // Save locally first
-      localStorage.setItem('madecc_cache_projects', JSON.stringify(projects));
+      safeLocalStorageSetItem('madecc_cache_projects', JSON.stringify(projects));
 
       const forceOffline = localStorage.getItem('madecc_force_offline') === 'true';
       if (forceOffline) {

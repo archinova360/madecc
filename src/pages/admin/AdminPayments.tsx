@@ -75,7 +75,10 @@ export default function AdminPayments() {
   const [isMounted, setIsMounted] = useState(false);
 
   React.useEffect(() => {
-    setIsMounted(true);
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 150);
+    return () => clearTimeout(timer);
   }, []);
 
   const filteredPayments = payments.filter(p => 
@@ -177,7 +180,7 @@ export default function AdminPayments() {
               <div className="flex flex-col sm:flex-row items-center gap-8">
                 <div className="w-full sm:w-1/2 h-[140px] relative">
                   {isMounted && (
-                    <ResponsiveContainer width="99.9%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <RechartsPieChart>
                       <Pie
                         data={categoryData}
@@ -240,7 +243,7 @@ export default function AdminPayments() {
           </div>
           <div className="h-[200px] w-full relative">
             {isMounted && (
-              <ResponsiveContainer width="99.9%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <LineChart data={chartData}>
                 <XAxis dataKey="name" hide />
                 <YAxis hide />

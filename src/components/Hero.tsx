@@ -1,10 +1,13 @@
 import { motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useContent } from "../context/ContentContext";
 
 import HERO_IMAGE from "../assets/images/modern_bridge_engineering_1778998225640.png";
 
 export default function Hero() {
+  const { pageOverrides } = useContent();
+
   return (
     <section className="relative h-screen flex items-center overflow-hidden bg-slate-950 pt-20">
       {/* Background Image with Overlay */}
@@ -33,13 +36,12 @@ export default function Hero() {
                </span>
             </div>
             
-            <h1 className="text-6xl md:text-[120px] font-black tracking-tighter leading-[0.8] mb-10 uppercase">
-              WE BUILD <br />
-              <span className="text-glow">FUTURE</span> LEGACIES.
+            <h1 className="text-4xl md:text-6xl lg:text-[76px] font-black tracking-tighter leading-tight mb-10 uppercase">
+              {pageOverrides.heroHeading}
             </h1>
             
-            <p className="text-slate-400 text-lg md:text-xl max-w-2xl mb-12 font-medium leading-relaxed border-l-2 border-brand-secondary/30 pl-8">
-              Leading the industry in modern structural design and sustainable construction. MADECC delivers excellence through innovation and unwavering commitment.
+            <p className="text-slate-400 text-base md:text-lg max-w-2xl mb-12 font-medium leading-relaxed border-l-2 border-brand-secondary/30 pl-8">
+              {pageOverrides.heroSubtitle}
             </p>
             
             <div className="flex flex-wrap gap-6">

@@ -18,23 +18,71 @@ function getStorePath(name: string): string {
   return path.join(DATA_STORES_DIR, `${name}.json`);
 }
 
+function sanitizeStoreObject(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === 'string') {
+    if (obj.startsWith('data:') && obj.length > 153600) {
+      const mimeType = obj.split(';')[0] || 'data:image';
+      return `${mimeType};base64, [TRUNCATED_FOR_STORE_SIZE_LIMITATION_MAX_150KB]`;
+    }
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeStoreObject(item));
+  }
+
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      cleaned[key] = sanitizeStoreObject(obj[key]);
+    }
+    return cleaned;
+  }
+
+  return obj;
+}
+
 async function getStoreData(name: string): Promise<any[] | null> {
   const storePath = getStorePath(name);
   if (!fs.existsSync(storePath)) {
     return null;
   }
+  let fileContent = "";
   try {
-    const data = await fs.promises.readFile(storePath, "utf-8");
-    return JSON.parse(data);
+    fileContent = await fs.promises.readFile(storePath, "utf-8");
+    return JSON.parse(fileContent);
   } catch (e) {
     console.error(`Error reading store [${name}]:`, e);
+    try {
+      if (fileContent && fileContent.trim().length > 0) {
+        console.warn(`Attempting self-healing recovery for truncated JSON store [${name}]...`);
+        const lastCloseBrace = fileContent.lastIndexOf('}');
+        if (lastCloseBrace !== -1) {
+          let partialData = fileContent.substring(0, lastCloseBrace + 1);
+          if (!partialData.trim().endsWith(']')) {
+            partialData += '\n]';
+          }
+          const recovered = JSON.parse(partialData);
+          console.log(`Successfully recovered ${recovered.length} items from truncated JSON store [${name}].`);
+          await saveStoreData(name, recovered);
+          return recovered;
+        }
+      }
+    } catch (recoveryError) {
+      console.error(`Self-healing recovery failed for JSON store [${name}]:`, recoveryError);
+    }
     return null;
   }
 }
 
 async function saveStoreData(name: string, data: any[]) {
   const storePath = getStorePath(name);
-  await fs.promises.writeFile(storePath, JSON.stringify(data, null, 2));
+  const sanitized = sanitizeStoreObject(data);
+  await fs.promises.writeFile(storePath, JSON.stringify(sanitized, null, 2));
 }
 
 // Lazy helper for Gemini API to prevent crash on startup if key is empty/not configured
@@ -104,8 +152,8 @@ async function startServer() {
     const app = express();
     const PORT = 3000;
 
-    app.use(express.json({ limit: '10mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    app.use(express.json({ limit: '200mb' }));
+    app.use(express.urlencoded({ extended: true, limit: '200mb' }));
 
     // API Route for Contact Form
     app.post("/api/contact", async (req, res) => {
@@ -410,7 +458,7 @@ async function startServer() {
     app.post("/api/store/:name", async (req, res) => {
       const { name } = req.params;
       const { data } = req.body;
-      if (!data || !Array.isArray(data)) {
+      if (!data || (typeof data !== 'object' && !Array.isArray(data))) {
         return res.status(400).json({ error: "Invalid data payload" });
       }
       try {

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { safeLocalStorageSetItem, safeLocalStorageGetItem } from '../utils/storage';
 
 export interface SEOConfig {
   title: string;
@@ -177,10 +178,66 @@ const DEFAULT_CONTENT: ContentItem[] = [
   }
 ];
 
+export interface PageOverrides {
+  heroHeading: string;
+  heroSubtitle: string;
+  missionStatement: string;
+  visionStatement: string;
+  homeProfileSummary: string;
+  corporateHistorySummary: string;
+}
+
+const DEFAULT_OVERRIDES: PageOverrides = {
+  heroHeading: "Constructing Sustainable Masterpieces in Cameroon",
+  heroSubtitle: "MADECC Group is Cameroon's chief building contractor. We shape skylines from Douala to Yaoundé with architectural excellence, compliance and budget fidelity.",
+  missionStatement: "To construct climate-resilient and structurally superior edifices in Cameroon, aligning strictly with local regulatory models (ANOR) while employing regional talent and modern, safe workflows.",
+  visionStatement: "To be the absolute benchmark of general construction in Central Africa, trusted for structural honesty, transparent bidding, and precision delivery.",
+  homeProfileSummary: "Founded with local execution spirit and international quality protocols, MADECC Group (Maison de Construction et de Civil) is an integrated engineering-grade construction company fully registered in Cameroon.",
+  corporateHistorySummary: "Established in Cameroon, MADECC Group began as a small structural advisory group. Sensing the critical need for standard general contractors combining true execution checklists, reliable logistics, and legal compliance, we scaled into a complete Design-Build institution spanning multiple active sites."
+};
+
+interface ContentContextType {
+  content: ContentItem[];
+  addContent: (item: Omit<ContentItem, 'id' | 'date'>) => void;
+  updateContent: (item: ContentItem) => void;
+  deleteContent: (id: string) => void;
+  pageOverrides: PageOverrides;
+  updatePageOverrides: (overrides: PageOverrides) => void;
+}
+
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export function ContentProvider({ children }: { children: React.ReactNode }) {
-  const [content, setContent] = useState<ContentItem[]>(DEFAULT_CONTENT);
+  const [content, setContent] = useState<ContentItem[]>(() => {
+    const cached = safeLocalStorageGetItem('madecc_cache_content');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Cache parsing error", e);
+      }
+    }
+    return DEFAULT_CONTENT;
+  });
+
+  const [pageOverrides, setPageOverrides] = useState<PageOverrides>(() => {
+    const cached = safeLocalStorageGetItem('madecc_cache_page_overrides');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object' && parsed.heroHeading) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Cache overrides parsing error", e);
+      }
+    }
+    return DEFAULT_OVERRIDES;
+  });
+
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load from server on mount
@@ -188,12 +245,28 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     const loadContent = async () => {
       try {
         const res = await fetch('/api/store/content');
-        const data = await res.json();
-        if (data && Array.isArray(data)) {
-          setContent(data);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data)) {
+            setContent(data);
+            safeLocalStorageSetItem('madecc_cache_content', JSON.stringify(data));
+          }
         }
       } catch (e) {
-        console.warn("Failed to synchronize with central ledger, using defaults.", e);
+        console.warn("Failed to synchronize content ledger with server, using cache.", e);
+      }
+
+      try {
+        const res = await fetch('/api/store/page_overrides');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data === 'object' && !data.default && data.heroHeading) {
+            setPageOverrides(data);
+            safeLocalStorageSetItem('madecc_cache_page_overrides', JSON.stringify(data));
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to synchronize page overrides ledger with server, using cache.", e);
       } finally {
         setIsInitialized(true);
       }
@@ -206,6 +279,7 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     if (!isInitialized) return;
 
     const syncContent = async () => {
+      safeLocalStorageSetItem('madecc_cache_content', JSON.stringify(content));
       try {
         await fetch('/api/store/content', {
           method: 'POST',
@@ -213,14 +287,34 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ data: content }),
         });
       } catch (e) {
-        console.error("Critical structural failure: Content synchronization failed", e);
+        console.error("Content synchronization failed", e);
       }
     };
 
-    // Debounce sync to avoid spamming the server
     const timeout = setTimeout(syncContent, 1000);
     return () => clearTimeout(timeout);
   }, [content, isInitialized]);
+
+  // Save to server when pageOverrides change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const syncOverrides = async () => {
+      safeLocalStorageSetItem('madecc_cache_page_overrides', JSON.stringify(pageOverrides));
+      try {
+        await fetch('/api/store/page_overrides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: pageOverrides }),
+        });
+      } catch (e) {
+        console.error("Page overrides synchronization failed", e);
+      }
+    };
+
+    const timeout = setTimeout(syncOverrides, 1000);
+    return () => clearTimeout(timeout);
+  }, [pageOverrides, isInitialized]);
 
   const addContent = (item: Omit<ContentItem, 'id' | 'date'>) => {
     const newItem: ContentItem = {
@@ -239,8 +333,12 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     setContent(prev => prev.filter(item => item.id !== id));
   };
 
+  const updatePageOverrides = (overrides: PageOverrides) => {
+    setPageOverrides(overrides);
+  };
+
   return (
-    <ContentContext.Provider value={{ content, addContent, updateContent, deleteContent }}>
+    <ContentContext.Provider value={{ content, addContent, updateContent, deleteContent, pageOverrides, updatePageOverrides }}>
       {children}
     </ContentContext.Provider>
   );

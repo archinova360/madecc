@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import Cropper from 'react-easy-crop';
@@ -36,8 +36,16 @@ import {
 import { useContent, ContentItem } from '../../context/ContentContext';
 
 export default function AdminContent() {
-  const { content: contentList, addContent, updateContent, deleteContent } = useContent();
-  const [activeTab, setActiveTab] = useState<'projects' | 'insights' | 'cloud'>('projects');
+  const { content: contentList, addContent, updateContent, deleteContent, pageOverrides, updatePageOverrides } = useContent();
+  const [activeTab, setActiveTab] = useState<'projects' | 'insights' | 'cloud' | 'general'>('projects');
+  const [editedOverrides, setEditedOverrides] = useState<any>(null);
+
+  useEffect(() => {
+    if (pageOverrides) {
+      setEditedOverrides({ ...pageOverrides });
+    }
+  }, [pageOverrides]);
+
   const [statusFilter, setStatusFilter] = useState<'All' | 'Published' | 'Draft' | 'Scheduled'>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -270,17 +278,19 @@ export default function AdminContent() {
             <h2 className="text-3xl font-black tracking-tight text-white uppercase italic">Content Management</h2>
             <p className="text-gray-400 mt-1">Manage public projects, insights, news, and SEO settings.</p>
           </div>
-          <button 
-            onClick={handleAddNew}
-            className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-600/20 active:scale-95"
-          >
-            <Plus size={18} />
-            {activeTab === 'projects' ? 'Add Featured Project' : 'Add Insight Post'}
-          </button>
+          {activeTab !== 'cloud' && activeTab !== 'general' && (
+            <button 
+              onClick={handleAddNew}
+              className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-orange-500 transition-all shadow-lg shadow-orange-600/20 active:scale-95"
+            >
+              <Plus size={18} />
+              {activeTab === 'projects' ? 'Add Featured Project' : 'Add Insight Post'}
+            </button>
+          )}
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1 bg-black/40 border border-gray-800 p-1.5 rounded-2xl w-fit">
+        <div className="flex items-center gap-1 bg-black/40 border border-gray-800 p-1.5 rounded-2xl w-fit flex-wrap">
           <button 
             onClick={() => setActiveTab('projects')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'projects' ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
@@ -302,34 +312,43 @@ export default function AdminContent() {
             <Cloud size={16} />
             6TB Media Hub
           </button>
+          <button 
+            onClick={() => setActiveTab('general')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'general' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+          >
+            <Settings size={16} />
+            Website General Pages
+          </button>
         </div>
 
         {/* Search & Filter */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-black/40 border border-gray-800 p-4 rounded-2xl">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-            <input 
-              type="text" 
-              placeholder={`Search ${activeTab}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-900/50 border border-transparent focus:border-orange-600/50 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none transition-all"
-            />
+        {activeTab !== 'cloud' && activeTab !== 'general' && (
+          <div className="flex flex-col md:flex-row items-center gap-4 bg-black/40 border border-gray-800 p-4 rounded-2xl">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+              <input 
+                type="text" 
+                placeholder={`Search ${activeTab}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-900/50 border border-transparent focus:border-orange-600/50 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <Filter size={16} className="text-gray-500 hidden md:block" />
+              <select 
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="flex-1 md:flex-none bg-gray-900/50 border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-black uppercase tracking-widest"
+              >
+                <option value="All">All Status</option>
+                <option value="Published">Published</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Draft">Drafts</option>
+              </select>
+            </div>
           </div>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <Filter size={16} className="text-gray-500 hidden md:block" />
-            <select 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="flex-1 md:flex-none bg-gray-900/50 border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-black uppercase tracking-widest"
-            >
-              <option value="All">All Status</option>
-              <option value="Published">Published</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Draft">Drafts</option>
-            </select>
-          </div>
-        </div>
+        )}
 
         {/* Content Grid / Cloud Hub Conditional Render */}
         {activeTab === 'cloud' ? (
@@ -504,6 +523,114 @@ export default function AdminContent() {
                   ))}
                </div>
             </div>
+          </div>
+        ) : activeTab === 'general' ? (
+          <div className="bg-black/40 border border-gray-800 rounded-3xl p-8 space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-800 pb-6 gap-4">
+              <div>
+                <h3 className="text-xl font-black text-white uppercase italic">Website General Pages Content Customization</h3>
+                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-1">Edit key headings and descriptive teaser paragraphs rendered on the public website pages.</p>
+              </div>
+              <button
+                onClick={() => {
+                  if (editedOverrides) {
+                    updatePageOverrides(editedOverrides);
+                    setCloudNotification({ message: "All page overrides successfully saved and distributed!", type: "success" });
+                    setTimeout(() => setCloudNotification(null), 3500);
+                  }
+                }}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold uppercase tracking-widest text-xs transition-all shadow-lg shadow-green-600/25 active:scale-95 whitespace-nowrap self-start sm:self-center"
+              >
+                <Database size={16} />
+                Save All Page Overrides
+              </button>
+            </div>
+
+            {cloudNotification && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-green-600/10 border border-green-500/20 text-green-500 rounded-2xl text-xs font-bold uppercase tracking-widest flex items-center gap-3"
+              >
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+                {cloudNotification.message}
+              </motion.div>
+            )}
+
+            {editedOverrides && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Home Page Hero Section */}
+                <div className="bg-gray-900/40 border border-gray-800/80 p-6 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-orange-500 border-l-2 border-orange-500 pl-3">Home Page Hero Frame</h4>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block">Hero Heading</label>
+                    <textarea
+                      value={editedOverrides.heroHeading || ''}
+                      onChange={e => setEditedOverrides((prev: any) => ({ ...prev, heroHeading: e.target.value }))}
+                      rows={3}
+                      className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-bold uppercase tracking-widest leading-relaxed"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block">Hero Subtitle</label>
+                    <textarea
+                      value={editedOverrides.heroSubtitle || ''}
+                      onChange={e => setEditedOverrides((prev: any) => ({ ...prev, heroSubtitle: e.target.value }))}
+                      rows={4}
+                      className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-bold uppercase tracking-widest leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                {/* About Page Corporate Core */}
+                <div className="bg-gray-900/40 border border-gray-800/80 p-6 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-orange-500 border-l-2 border-orange-500 pl-3">About Page Corporate Core</h4>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block">Mission Statement</label>
+                    <textarea
+                      value={editedOverrides.missionStatement || ''}
+                      onChange={e => setEditedOverrides((prev: any) => ({ ...prev, missionStatement: e.target.value }))}
+                      rows={3}
+                      className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-bold uppercase tracking-widest leading-relaxed"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block">Vision Statement</label>
+                    <textarea
+                      value={editedOverrides.visionStatement || ''}
+                      onChange={e => setEditedOverrides((prev: any) => ({ ...prev, visionStatement: e.target.value }))}
+                      rows={4}
+                      className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-bold uppercase tracking-widest leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                {/* About Page History Teaser */}
+                <div className="lg:col-span-2 bg-gray-900/40 border border-gray-800/80 p-6 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-orange-500 border-l-2 border-orange-500 pl-3">About Page History Teaser</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block">Home Profile Summary</label>
+                      <textarea
+                        value={editedOverrides.homeProfileSummary || ''}
+                        onChange={e => setEditedOverrides((prev: any) => ({ ...prev, homeProfileSummary: e.target.value }))}
+                        rows={5}
+                        className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-bold uppercase tracking-widest leading-relaxed"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest block">Corporate History Summary</label>
+                      <textarea
+                        value={editedOverrides.corporateHistorySummary || ''}
+                        onChange={e => setEditedOverrides((prev: any) => ({ ...prev, corporateHistorySummary: e.target.value }))}
+                        rows={5}
+                        className="w-full bg-black border border-gray-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-orange-600 text-xs font-bold uppercase tracking-widest leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

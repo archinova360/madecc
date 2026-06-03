@@ -90,7 +90,10 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    setIsMounted(true);
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 150);
+    return () => clearTimeout(timer);
   }, []);
 
   const activeDataBeforeFilter = timeframe === 'monthly' ? monthlyData : quarterlyData;
@@ -271,7 +274,7 @@ export default function AdminDashboard() {
 
             <div className="h-[400px] w-full min-w-0 relative">
               {isMounted && (
-                <ResponsiveContainer width="99.9%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   {renderChart()}
                 </ResponsiveContainer>
               )}

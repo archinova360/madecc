@@ -15,8 +15,11 @@ import {
   Award
 } from "lucide-react";
 import { useDocumentSEO } from "../hooks/useDocumentSEO";
+import { useContent } from "../context/ContentContext";
 
 export default function AboutPage() {
+  const { pageOverrides } = useContent();
+
   useDocumentSEO({
     title: "About Us | MADECC Construction Group Cameroon",
     description: "Learn about MADECC Construction Group: our historical milestones since 1998 in Yaoundé, uncompromising integrity core values, certified construction safety directors, and eco-conscious civil engineering legacy.",
@@ -105,7 +108,7 @@ export default function AboutPage() {
             </h2>
             <div className="space-y-6 text-slate-300 text-lg md:text-xl font-light leading-relaxed">
               <p>
-                At MADECC Construction, we do not simply build. We shape the environments where societies grow, businesses innovate, and communities thrive. With decades of field-testing and continuous research in sustainable systems, our firm delivers the highest tier of general contracting excellence.
+                {pageOverrides.homeProfileSummary}
               </p>
               <p>
                 Our structural framework consists of expert planners, precision geologists, and experienced field staff working in harmony. We manage every phase of the project lifecycle from pre-design modeling to the final delivery to ensure timeline discipline and budget integrity.
@@ -171,7 +174,7 @@ export default function AboutPage() {
                   Our Clear Mission
                 </h3>
                 <p className="text-lg text-slate-300 font-light leading-relaxed">
-                  To design, engineer, and build high-integrity structures and regional civil infrastructure that redefine architectural boundaries. We are committed to achieving unparalleled precision, safeguarding structural durability, and driving socio-economic progress across our active developmental terminals.
+                  {pageOverrides.missionStatement}
                 </p>
                 <ul className="space-y-3 pt-4 text-sm text-slate-400">
                   <li className="flex items-center gap-3">
@@ -199,7 +202,7 @@ export default function AboutPage() {
                   Our Vision Parameters
                 </h3>
                 <p className="text-lg text-slate-300 font-light leading-relaxed">
-                  To stand as the absolute benchmark in smart civil construction across the African continent, leading with continuous technological innovation, clean fiscal transparency, and long-term societal value. We look upwards to craft architectural icons that persist for generations.
+                  {pageOverrides.visionStatement}
                 </p>
                 <ul className="space-y-3 pt-4 text-sm text-slate-400">
                   <li className="flex items-center gap-3">
@@ -226,7 +229,7 @@ export default function AboutPage() {
               <div className="w-6 h-[1px] bg-brand-secondary" />
             </div>
             <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight">Our Rich History</h2>
-            <p className="text-slate-400 mt-4 text-sm md:text-base">Tracing our path from a local consultancy to an engineering powerhouse.</p>
+            <p className="text-slate-400 mt-4 text-sm md:text-base leading-relaxed">{pageOverrides.corporateHistorySummary}</p>
           </div>
 
           <div className="relative border-l border-white/10 md:border-l-0 md:grid md:grid-cols-4 md:gap-8 gap-12 flex flex-col pl-6 md:pl-0">

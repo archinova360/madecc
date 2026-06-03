@@ -14,7 +14,10 @@ import {
   QrCode,
   Copy,
   CheckCircle,
-  FileDown
+  FileDown,
+  Volume2,
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -57,6 +60,55 @@ const mockReceipts: Receipt[] = [
     remainingBalance: 0
   }
 ];
+
+// High-fidelity Web Audio API tone synthesis for professional hardware feedback
+const playBeep = (success: boolean) => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    
+    if (success) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.16);
+    } else {
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc1.type = 'sawtooth';
+      osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(180, ctx.currentTime);
+      osc2.frequency.setValueAtTime(183, ctx.currentTime);
+      
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+      
+      osc1.start(ctx.currentTime);
+      osc2.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.35);
+      osc2.stop(ctx.currentTime + 0.35);
+    }
+  } catch (err) {
+    console.warn("Audio feedback suppressed:", err);
+  }
+};
 
 export default function AdminReceipts() {
   const [receipts, setReceipts] = useState<Receipt[]>(mockReceipts);
@@ -111,6 +163,41 @@ export default function AdminReceipts() {
   const [selectedQRReceipt, setSelectedQRReceipt] = useState<Receipt | null>(null);
   const [qrUrl, setQrUrl] = useState<string>('');
   const [qrCopied, setQrCopied] = useState(false);
+
+  // Scan simulator state variables
+  const [isScanSimActive, setIsScanSimActive] = useState(false);
+  const [simInputNo, setSimInputNo] = useState('');
+  const [isSimulatingScan, setIsSimulatingScan] = useState(false);
+  const [simScanFeedback, setSimScanFeedback] = useState<{ success: boolean; msg: string } | null>(null);
+
+  const triggerScanSimulation = (targetNo: string) => {
+    if (isSimulatingScan) return;
+    setIsSimulatingScan(true);
+    setSimScanFeedback(null);
+
+    // Simulate 1200ms custom optic scan sweep delay
+    setTimeout(() => {
+      const foundReceipt = receipts.find(
+        r => r.receiptNo.trim().toUpperCase() === targetNo.trim().toUpperCase()
+      );
+
+      if (foundReceipt) {
+        playBeep(true);
+        setSelectedQRReceipt(foundReceipt);
+        setSimScanFeedback({
+          success: true,
+          msg: `Scan match success! Loaded ${foundReceipt.receiptNo} (CFA ${foundReceipt.amount.toLocaleString()}) representing ${foundReceipt.receivedFrom}.`
+        });
+      } else {
+        playBeep(false);
+        setSimScanFeedback({
+          success: false,
+          msg: `Ledger missing entry: code "${targetNo}" matches no existing receipt.`
+        });
+      }
+      setIsSimulatingScan(false);
+    }, 1200);
+  };
 
   // Auto-generate on-screen QR Code for instantaneous visual scanning on-site
   useEffect(() => {
@@ -694,6 +781,143 @@ export default function AdminReceipts() {
                     <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider">Timestamp:</span>
                     <span className="font-mono text-gray-500">{format(new Date(selectedQRReceipt.date), 'MMM dd, yyyy')}</span>
                   </div>
+                </div>
+
+                {/* Hardware Barcode & QR Laser Simulation console */}
+                <div className="w-full border-t border-white/5 pt-5 space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsScanSimActive(!isScanSimActive);
+                      setSimScanFeedback(null);
+                      setSimInputNo('');
+                    }}
+                    className="w-full py-2.5 px-4 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-750 text-[10px] font-black uppercase tracking-wider text-orange-400 rounded-xl transition-all flex items-center justify-center gap-2"
+                  >
+                    <QrCode size={13} className={isScanSimActive ? "text-orange-500" : "animate-pulse text-orange-500"} />
+                    {isScanSimActive ? "Hide Laser Scan Simulation Terminal" : "Activate Live Scan Simulator"}
+                  </button>
+
+                  <AnimatePresence>
+                    {isScanSimActive && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden space-y-4 text-left"
+                      >
+                        <div className="relative w-full h-24 bg-slate-950 border border-white/10 rounded-2xl flex items-center justify-center overflow-hidden">
+                          <div className="font-mono text-[9px] text-zinc-500 flex flex-col items-center select-none text-center px-4">
+                            {isSimulatingScan ? (
+                              <span className="text-orange-400 font-bold animate-pulse uppercase tracking-widest">[OPTICAL EMISSION ACTIVE - SWEEPING LEDGER]</span>
+                            ) : simScanFeedback ? (
+                              <span className={simScanFeedback.success ? "text-green-400 font-bold uppercase tracking-widest" : "text-red-500 font-bold uppercase tracking-widest"}>
+                                {simScanFeedback.success ? "✓ LEDGER SIGNATURE VERIFIED" : "✗ NO SECURE CORRELATION FOUND"}
+                              </span>
+                            ) : (
+                              <>
+                                <span className="text-zinc-400 uppercase font-black tracking-widest">[READY FOR DECODING SCANNER]</span>
+                                <span className="text-[8px] text-slate-500 uppercase mt-0.5 font-bold">Awaiting target hardware verification trigger</span>
+                              </>
+                            )}
+                          </div>
+                          
+                          {/* Simulated glowing red scanning laser line */}
+                          {isSimulatingScan && (
+                            <motion.div 
+                              initial={{ top: '5%' }}
+                              animate={{ top: '95%' }}
+                              transition={{ repeat: Infinity, repeatType: 'reverse', duration: 0.8, ease: 'easeInOut' }}
+                              className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_10px_2px_rgba(239,68,68,0.8)] z-20"
+                            />
+                          )}
+                        </div>
+
+                        {/* Scan Presets for instantaneous user clicks */}
+                        <div className="space-y-1.5">
+                          <span className="text-[8px] uppercase font-bold text-gray-500 tracking-wider">Known Ledger Sequences (Optic click scan):</span>
+                          <div className="flex flex-wrap gap-2">
+                            {receipts.slice(0, 3).map((r) => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                disabled={isSimulatingScan}
+                                onClick={() => {
+                                  setSimInputNo(r.receiptNo);
+                                  triggerScanSimulation(r.receiptNo);
+                                }}
+                                className="px-2 py-1 bg-slate-950 hover:bg-slate-900 border border-white/5 hover:border-orange-500/30 text-slate-300 hover:text-orange-400 rounded-lg text-[9px] font-mono transition-all disabled:opacity-50"
+                              >
+                                🎯 {r.receiptNo}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              disabled={isSimulatingScan}
+                              onClick={() => {
+                                setSimInputNo('RCP-DUMMY-NIL');
+                                triggerScanSimulation('RCP-DUMMY-NIL');
+                              }}
+                              className="px-2 py-1 bg-slate-950 hover:bg-slate-900 border border-white/5 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-lg text-[9px] font-mono transition-all disabled:opacity-50"
+                            >
+                              ⚠️ Invalid Key
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Scanner Manual Input form */}
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              value={simInputNo}
+                              onChange={(e) => setSimInputNo(e.target.value)}
+                              placeholder="Type receipt sequence ref..."
+                              disabled={isSimulatingScan}
+                              className="w-full bg-slate-950 border border-white/5 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder:text-zinc-650 outline-none focus:border-orange-500/50 disabled:opacity-50"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && simInputNo.trim()) {
+                                  triggerScanSimulation(simInputNo);
+                                }
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isSimulatingScan || !simInputNo.trim()}
+                            onClick={() => triggerScanSimulation(simInputNo)}
+                            className="bg-orange-600 hover:bg-orange-700 disabled:bg-slate-800 disabled:opacity-40 text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5"
+                          >
+                            <Zap size={12} className={isSimulatingScan ? "animate-bounce" : ""} />
+                            {isSimulatingScan ? "Scanning" : "Trigger Scan"}
+                          </button>
+                        </div>
+
+                        {/* Output verification status feedback card */}
+                        {simScanFeedback && (
+                          <div className={`p-3.5 rounded-xl border flex gap-2.5 items-start ${
+                            simScanFeedback.success 
+                              ? 'bg-green-500/5 border-green-500/20 text-green-400' 
+                              : 'bg-red-500/5 border-red-500/20 text-red-400'
+                          }`}>
+                            <div className="mt-0.5">
+                              {simScanFeedback.success ? (
+                                <CheckCircle size={14} className="text-green-500 shrink-0" />
+                              ) : (
+                                <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                              )}
+                            </div>
+                            <div className="text-[10px] leading-normal font-sans">
+                              <span className="font-bold block uppercase tracking-wide">
+                                {simScanFeedback.success ? "LEDGER CONFIRMATION SUCCESS" : "LEDGER LOOKUP REFUSED"}
+                              </span>
+                              <p className="text-slate-400 mt-0.5">{simScanFeedback.msg}</p>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <div className="flex gap-3 w-full">
